@@ -1,2 +1,6 @@
 # temperley-keyb
-David Temperley's bayesian key-finding program, with some modifications.
+
+David Temperley's key-finding program for polyphonic music using Bayesian probabilistic modeling.
+Original files and explanations may be found at http://davidtemperley.com/music-and-probability/.
+
+Modifications done by me in order to adapt the code to my compiler.
