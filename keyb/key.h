@@ -22,6 +22,30 @@ extern int running;
 extern int npc_or_tpc_profile;
 extern int scoring_mode;
 double seglength;
+
+/* BETE */
+
+int create_chords();
+int create_segments();
+int fill_segments();
+int count_segment_notes();
+int make_first_table();
+int make_tables();
+int best_key_analysis();
+int generate_chord_info();
+int merge_functions();
+int chords_to_romnums_kp();
+int print_romnums_kp();
+int chords_to_romnums_as();
+int print_romnums_as();
+int prepare_profiles();
+int generate_tpc_profiles();
+int generate_npc_profiles();
+int match_profiles();
+int display_running();
+
+/* BETE */
+
 typedef struct note_struct {
   int ontime;
   int offtime;
@@ -48,7 +72,7 @@ typedef struct chord_struct {
 } blar;
 
 struct chord_struct ichord[5000];      /* input chords */
-struct chord_struct chord[2000];       
+struct chord_struct chord[2000];
 struct {
   int time;
   int level;
@@ -87,4 +111,3 @@ int final[500];
 int provisional[500][500]; /* used for printing out provisional analyses at each step */
 
 double keyfit_score[500];
-

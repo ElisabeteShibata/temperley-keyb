@@ -1,4 +1,4 @@
-CC      =gcc
+CC      = gcc -g -O0 -Wall
 LIBS    = -lm
 
 OBS	= main.o key.o romnums.o globals.o
