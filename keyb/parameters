@@ -19,13 +19,13 @@ minor_profile = 0.712 0.084 0.474 0.618 0.049 0.460 0.105 0.747 0.404 0.067 0.13
 %minor_profile = 0.786  0.058  0.618  0.734  0.052  0.618  0.185  0.763  0.497  0.104  0.139  0.399
 
 %Haydn-Mozart profiles
-%major_profile = 0.786 0.051 0.666 0.029 0.740 0.592 0.142 0.809 0.054 0.457 0.037 0.565 
-%minor_profile = 0.727 0.057 0.696 0.679 0.099 0.580 0.159 0.807 0.432 0.136 0.162 0.497     
+%major_profile = 0.786 0.051 0.666 0.029 0.740 0.592 0.142 0.809 0.054 0.457 0.037 0.565
+%minor_profile = 0.727 0.057 0.696 0.679 0.099 0.580 0.159 0.807 0.432 0.136 0.162 0.497
 
 % Does the input vector assume an NPC profile (0) or a TPC profile (1)?
 npc_or_tpc_profile=0
 
-% The key-profile value for TPCs outside the range of F#-Db. (Only relevant if a TPC profile is 
+% The key-profile value for TPCs outside the range of F#-Db. (Only relevant if a TPC profile is
 % being used)
 default_profile_value = 1.5
 
@@ -33,18 +33,15 @@ default_profile_value = 1.5
 % algorithm in CBMS, 3 = Bayesian key-finding algorithm.
 scoring_mode = 3
 
-% The penalty for changing keys from one segment to another. In Bayesian model, this is 
+% The penalty for changing keys from one segment to another. In Bayesian model, this is
 % the probability of changing key (so change penalty = 1.0 means each segment MUST modulate!).
 change_penalty= .002
 
 % The metrical level used to divide the piece into segments.
 segment_beat_level=3
 
-% These commands relate to the optional Roman numeral analysis. 
+% These commands relate to the optional Roman numeral analysis.
 beat_printout_level=2
 romnums=0
 romnum_type=0
 running=0
-
-
-

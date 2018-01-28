@@ -76,8 +76,9 @@ int read_parameter_file(char *filename, int file_specified) {
   if(file_specified) {
     param_stream = fopen(filename, "r");
     if (param_stream == NULL) {
-      printf("Warning: cannot open \"%s\".  Using defaults.\n", filename);
+      fprintf(stderr, "Warning: cannot open \"%s\".  Using defaults.\n", filename);
       filename = "parameters"; /* BETE: if stream is NULL, set to default, right? */
+      param_stream = fopen(filename, "r");
     /*  return; */ /* BETE: Here it's not a function, so no return value is expected, right? Commented out. */
     }
   }
@@ -86,7 +87,7 @@ int read_parameter_file(char *filename, int file_specified) {
     param_stream = fopen(filename, "r");
     if(param_stream == NULL) {
       /* filename = "key/parameters"; */
-      printf("No valid parameter file found, exiting program.\n");
+      fprintf(stderr, "No valid parameter file found, exiting program.\n");
       exit(EXIT_FAILURE);
     }
     /* param_stream = fopen(filename, "r"); */ /* BETE: Repeated line? Commented out. */
@@ -352,7 +353,8 @@ int main(int argc, char *argv[])
 
    match_profiles();
 
-   if(segtotal>0) {
+   if(segtotal>0) {         // BETE: when there's just one segment to be analyzed the function match_profiles()
+                            // prints the best_key for that segment
      make_first_table();
      make_tables();
      best_key_analysis();
