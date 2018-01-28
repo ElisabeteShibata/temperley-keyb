@@ -12,14 +12,14 @@ The program also requires "beat" statements of the form "Beat [time]
 [level]".  It uses these to divide the piece into short segments
 (generally segments are defined by level 3 or level 4 beats). It then
 does a key analysis in which every segment is assigned a key. The
-program can also take "Chord" statements ("Chord [ontime] [offtime] 
-[root]", where "root" is a TPC) and use these, combined with the key analysis, 
+program can also take "Chord" statements ("Chord [ontime] [offtime]
+[root]", where "root" is a TPC) and use these, combined with the key analysis,
 to make a Roman numeral analysis.
 
 To compile the program, type "make". Then to run it, type "key [input-file]".
 
 The program can be used to implement several different key-finding algorithms:
-the Krumhansl-Schmuckler algorithm, Temperley's algorithm in _CBMS_, and 
+the Krumhansl-Schmuckler algorithm, Temperley's algorithm in _CBMS_, and
 Temperley's polyphonic Bayesian algorithm (see _Music and Probability_, chapter 6,
 for explanation).
 
@@ -29,75 +29,90 @@ more information as well.
 
 A parameter file contains a number of parameters for the program (the default
 file is "parameters"). These include key-profile values, the scoring algorithm
-used (0=K-S algorithm, 1=CBMS algorithm, 3=Bayesian algorithm), and other things. 
-See "parameters" for comments. 
+used (0=K-S algorithm, 1=CBMS algorithm, 3=Bayesian algorithm), and other things.
+See "parameters" for comments.
 
 The flag "-p" followed by a filename specifies the parameter file. The flag
 "-s", followed by an integer, specifies the metrical level to be used for
-segmenting the piece. 
+segmenting the piece.
 
 Keys are internally represented with line of fiths numbers: G=13, C=14,
-F=15...Gm=41, Cm=42, Fm=43...etc. 
+F=15...Gm=41, Cm=42, Fm=43...etc.
 
 */
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <unistd.h>
 #include "key.h"
 
-bad_param(char * line) {
-  char * x;
+int bad_input(int ln) {
+  if(verbosity>1) printf("Bad input on line %d\n", ln);
+  return EXIT_SUCCESS; /* Or exit (1)?*/
+}
+
+int bad_param(char *line) {
+  char *x;
   x = strchr(line, '\n');
   if (x != NULL) *x = '\0';
   printf("Warning: cannot interpret \"%s\" in parameters file -- skipping it.\n", line);
+  return EXIT_SUCCESS; /* Or exit (1)?*/
 }
 
-read_parameter_file(char *filename, int file_specified) {
+int read_parameter_file(char *filename, int file_specified) {
   char line[100];
   char part[14][100];
   int i, p;
   float value;
   FILE *param_stream;
 
+  // char cwd[1024];
+  // chdir("/path/to/change/directory/to");
+  // getcwd(cwd, sizeof(cwd));
+  // printf("Current working dir: %s\n", cwd);
+
   if(file_specified) {
+    param_stream = fopen(filename, "r");
+    if (param_stream == NULL) {
+      fprintf(stderr, "Warning: cannot open \"%s\".  Using defaults.\n", filename);
+      filename = "parameters"; /* BETE: if stream is NULL, set to default, right? */
       param_stream = fopen(filename, "r");
-      if (param_stream == NULL) {
-	  printf("Warning: cannot open \"%s\".  Using defaults.\n", filename);
-	  return;
-      }
+    /*  return; */ /* BETE: Here it's not a function, so no return value is expected, right? Commented out. */
+    }
   }
   else {
-      filename = "parameters";
-      param_stream = fopen(filename, "r");
-      if(param_stream == NULL) filename = "key/parameters";
-      param_stream = fopen(filename, "r");
-      if(param_stream == NULL) return;
+    filename = "parameters";
+    param_stream = fopen(filename, "r");
+    if(param_stream == NULL) {
+      /* filename = "key/parameters"; */
+      fprintf(stderr, "No valid parameter file found, exiting program.\n");
+      exit(EXIT_FAILURE);
+    }
+    /* param_stream = fopen(filename, "r"); */ /* BETE: Repeated line? Commented out. */
+    /* if(param_stream == NULL) return; */ /* BETE: Here it's not a function, so no return value is expected, right? Commented out. */
   }
 
-
   while(fgets(line, sizeof(line), param_stream) !=NULL) {
+
     for (i=0; isspace(line[i]); i++);
     if (line[i] == '%' || line[i] == '\0') continue;  /* ignore comment and blank lines */
     for (i=0; line[i] != '\0'; i++) if (line[i] == '=') line[i] = ' '; /* kill all '=' signs */
 
     if (sscanf(line, "%99s %99s %99s", part[0], part[1], part[2]) != 2) {
-      /* The line has more than two parts; it either has to be a profile statement or its bad */
+      /* The line has more than two parts; it either has to be a profile statement or it's bad */
       if(strcmp(part[0], "major_profile") == 0) {
-	if (sscanf(line, "%99s %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %99s ", part[0], 
-		   &major_profile[0], &major_profile[1], &major_profile[2], &major_profile[3], &major_profile[4], &major_profile[5], &major_profile[6], &major_profile[7], &major_profile[8], &major_profile[9], &major_profile[10], &major_profile[11], part[13]) != 13) {
-	  bad_param(line);
-	}
-      }
-      else if(strcmp(part[0], "minor_profile") == 0) {
-	if (sscanf(line, "%99s %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %99s", part[0], 
-		   &minor_profile[0], &minor_profile[1], &minor_profile[2], &minor_profile[3], &minor_profile[4], &minor_profile[5], &minor_profile[6], &minor_profile[7], &minor_profile[8], &minor_profile[9], &minor_profile[10], &minor_profile[11], part[13]) != 13) {
-	  bad_param(line);
-	}
-      }
-
-      else {
-	bad_param(line);
-      }
+        if (sscanf(line, "%99s %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %99s ", part[0],
+            &major_profile[0], &major_profile[1], &major_profile[2], &major_profile[3], &major_profile[4],
+            &major_profile[5], &major_profile[6], &major_profile[7], &major_profile[8], &major_profile[9],
+            &major_profile[10], &major_profile[11], part[13]) != 13) bad_param(line);
+      } else if(strcmp(part[0], "minor_profile") == 0) {
+        if (sscanf(line, "%99s %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %99s", part[0],
+            &minor_profile[0], &minor_profile[1], &minor_profile[2], &minor_profile[3], &minor_profile[4],
+            &minor_profile[5], &minor_profile[6], &minor_profile[7], &minor_profile[8], &minor_profile[9],
+            &minor_profile[10], &minor_profile[11], part[13]) != 13) bad_param(line);
+      } else bad_param(line);
       continue;
     }
 
@@ -106,31 +121,21 @@ read_parameter_file(char *filename, int file_specified) {
       bad_param(line);
       continue;
     }
-    if (strcmp(part[0], "change_penalty") == 0) {
-      change_penalty = value;
-    } else if (strcmp(part[0], "scoring_mode") == 0) {
-      scoring_mode = value;
-    } else if (strcmp(part[0], "npc_or_tpc_profile") == 0) {
-      npc_or_tpc_profile = value;
-    } else if (strcmp(part[0], "segment_beat_level") == 0) {
-      segment_beat_level = value;
-    } else if (strcmp(part[0], "beat_printout_level") == 0) {
-      beat_printout_level = value;
-    } else if (strcmp(part[0], "verbosity") == 0) {
-      verbosity = value;
-    } else if (strcmp(part[0], "romnums") == 0) {
-      romnums = value;
-    } else if (strcmp(part[0], "romnum_type") == 0) {
-      romnum_type = value;
-    } else if (strcmp(part[0], "running") == 0) {
-      running = value;
-    } else if (strcmp(part[0], "default_profile_value") == 0) {
-      default_profile_value = value;
-    } else {
-      bad_param(line);
-    }
-  }      
+    if (strcmp(part[0], "change_penalty") == 0) change_penalty = value;
+    else if (strcmp(part[0], "scoring_mode") == 0) scoring_mode = value;
+    else if (strcmp(part[0], "npc_or_tpc_profile") == 0) npc_or_tpc_profile = value;
+    else if (strcmp(part[0], "segment_beat_level") == 0) segment_beat_level = value;
+    else if (strcmp(part[0], "beat_printout_level") == 0) beat_printout_level = value;
+    else if (strcmp(part[0], "verbosity") == 0) verbosity = value;
+    else if (strcmp(part[0], "romnums") == 0) romnums = value;
+    else if (strcmp(part[0], "romnum_type") == 0) romnum_type = value;
+    else if (strcmp(part[0], "running") == 0) running = value;
+    else if (strcmp(part[0], "default_profile_value") == 0) default_profile_value = value;
+    else bad_param(line);
+  }
+
   fclose(param_stream);
+
   if(verbosity>=2) {
     printf("verbosity = %d\n", verbosity);
     printf("major_profile: ");
@@ -139,7 +144,7 @@ read_parameter_file(char *filename, int file_specified) {
     printf("minor_profile: ");
     for(p=0; p<12; p++) printf("%6.3f ", minor_profile[p]);
     printf("\n");
-    printf("default_profile_value = %6.3f\n", default_profile_value);    
+    printf("default_profile_value = %6.3f\n", default_profile_value);
     printf("npc_or_tpc_profile = %d\n", npc_or_tpc_profile);
     printf("scoring_mode = %d\n", scoring_mode);
     printf("change penalty = %6.2f\n", change_penalty);
@@ -149,211 +154,228 @@ read_parameter_file(char *filename, int file_specified) {
     printf("romnum_type = %d\n", romnum_type);
     printf("running = %d\n", running);
   }
+  return EXIT_SUCCESS;
 }
 
-bad_input(int ln)
+int main(int argc, char *argv[])
 {
-  if(verbosity>1) printf("Bad input on line %d\n", ln);
-}
+  char line[100];
+  char noteword[10];
+  char junk[10];
+  int z=0, b=0, c=0, s=0, j, line_no=0, i, pitch, tpc_found, npc_found, seg_beat=-1, optc=0, opterr=0;
+  char *parameter_file = NULL, *input_file = NULL;
+  int param_file_specified = 0;
 
-main(argc, argv)
-int argc;
-char *argv[];
-{
-    char line[100];
-    char noteword[10];
-    char junk[10];
-    int z=0, b=0, c=0, s=0, j, line_no=0, i, pitch, tpc_found, npc_found, seg_beat=-1;
-    
-    char *parameter_file = NULL, *input_file = NULL;
-    int param_file_specified = 0;
-    
-    for (j=1; j<argc; j++) {
-	if (strcmp(argv[j], "-p") == 0) {
-	    parameter_file = argv[j+1];
-	    param_file_specified = 1;
-	    j++;
-	} else if (strcmp(argv[j], "-s") == 0) {
-	    sscanf(argv[j+1], "%d", &seg_beat);
-	    j++;
-	} else if (input_file == NULL) {
-	    /* assume it's a file */
-	    input_file = argv[j];
-	}
+  while ((optc = getopt (argc, argv, "p:s:")) != -1)
+    switch (optc) {
+      case 'p':
+        parameter_file = optarg;
+        param_file_specified = 1;
+        break;
+      case 's':
+         sscanf(optarg, "%d", &seg_beat);;
+         break;
+      case '?':
+         if (optopt == 'p')
+           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+        if (optopt == 's')
+             fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+         else if (isprint (optopt))
+           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+         else
+           fprintf (stderr,
+                    "Unknown option character `\\x%x'.\n", optopt);
+         return 1;
+       default:
+         abort ();
+       }
+
+    for (j = optind; j < argc; j++)
+     input_file = argv[j];
+
+   /*
+  for (j=1; j<argc; j++) {
+    if (strcmp(argv[j], "-p") == 0) {
+      parameter_file = argv[j+1];
+      param_file_specified = 1;
+      j++;
+    } else if (strcmp(argv[j], "-s") == 0) {
+      sscanf(argv[j+1], "%d", &seg_beat);
+      j++;
+    } else if (input_file == NULL) {
+      assume it's a file
+      input_file = argv[j];
     }
-    
-    read_parameter_file (parameter_file, param_file_specified);
+  }
+*/
+  read_parameter_file(parameter_file, param_file_specified);
 
-    if(seg_beat != -1) segment_beat_level = seg_beat;
+  if(seg_beat != -1) segment_beat_level = seg_beat;
 
-    if(scoring_mode == 0 && npc_or_tpc_profile == 1) {
-	printf("Error: scoring mode 0 requires an npc profile\n");
-	exit(1);
-    }
-    if(scoring_mode == 3 && npc_or_tpc_profile == 1) {
-	printf("Error: scoring mode 3 requires an npc profile\n");
-	exit(1);
-    }
+  if(scoring_mode == 0 && npc_or_tpc_profile == 1) {
+    printf("Error: scoring mode 0 requires an npc profile\n");
+    exit(1);
+  }
+  if(scoring_mode == 3 && npc_or_tpc_profile == 1) {
+    printf("Error: scoring mode 3 requires an npc profile\n");
+    exit(1);
+  }
 
-    final_timepoint=0;
-    if (input_file != NULL) {
-	in_file = fopen(input_file, "r");
-	if (in_file == NULL) {
-	    printf("I can't open that file\n");
-	    exit(1);
-	}
-    } else {
-	in_file = stdin;
-    }
-    
-    tpc_found = 0;
-    npc_found = 0;
+  final_timepoint=0;
 
-    while (fgets(line, sizeof(line), in_file) !=NULL) {            /* read in TPC_Notes, Chords, and Beats */
-	line_no++;
-	for (i=0; isspace(line[i]); i++);
-	if (line[i]=='%') continue;                                  /* Ignore comments and blank lines */
-	if (sscanf (line, "%s", noteword) !=1) continue;             
-	
-	if (strcmp (noteword, "TPCNote") == 0) { 
-	    
-	    if(npc_found == 1) {
-		printf("Error: Can't combine Notes and TPCNotes in a single input file\n");
-		exit(1);
-	    }
-	    if (sscanf (line, "%s %d %d %d %d %10s", noteword, &note[z].ontime, &note[z].offtime, &note[z].pitch,
-			&note[z].tpc, junk) !=5) bad_input(line_no);
-	    note[z].duration = note[z].offtime - note[z].ontime;
-	    
+  if (input_file != NULL) {
+    in_file = fopen(input_file, "r");
+    if (in_file == NULL) {
+      printf("I can't open file %s\n", input_file);
+      exit(1);
+    } /* else in_file = stdin; Commenting out */
+  }
+
+  tpc_found = 0;
+  npc_found = 0;
+
+  while (fgets(line, sizeof(line), in_file) !=NULL) {            /* read in TPC_Notes, Chords, and Beats */
+    line_no++;
+
+    for (i=0; isspace(line[i]); i++);
+    if (line[i]=='%') continue;                                  /* Ignore comments and blank lines */
+    if (sscanf (line, "%s", noteword) !=1) continue;
+
+    if (strcmp (noteword, "TPCNote") == 0) {
+
+      if(npc_found == 1) {
+        printf("Error: Can't combine Notes and TPCNotes in a single input file\n");
+        exit(1);
+      }
+      if (sscanf (line, "%s %d %d %d %d %10s", noteword, &note[z].ontime, &note[z].offtime, &note[z].pitch,
+          &note[z].tpc, junk) !=5) bad_input(line_no);
+
+      note[z].duration = note[z].offtime - note[z].ontime;
+
 	    if(npc_or_tpc_profile==1) note[z].tpc=note[z].tpc+12;             /* C = 14 for present purposes */
-	    else note[z].tpc = ((note[z].tpc+3+120) % 12) + 9; /* Use this line instead to shift all TPC's into 
+	    else note[z].tpc = ((note[z].tpc+3+120) % 12) + 9; /* Use this line instead to shift all TPC's into
 								  one cycle of the LOF: 9 to 20 inclusive */
-	    
+
 	    /*printf("%d %d %d %d\n", note[z].ontime, note[z].offtime, note[z].pitch, note[z].tpc);  */
 	    total_duration = total_duration + note[z].duration;
       tpc_found = 1;
       ++z;
-      
-	}
-	
-	else if (strcmp (noteword, "Note") == 0) {  
-	    
-	    if (npc_or_tpc_profile == 1) {
-		printf("Error: TPCNotes needed as input for TPC profile mode\n");
-		exit(1);
-	    }
-	    if(tpc_found == 1) {
-		printf("Error: Can't combine Notes and TPCNotes in a single input file\n");
-		exit(1);
-	    }
-	    
-	    if (sscanf (line, "%s %d %d %d %10s", noteword, &note[z].ontime, &note[z].offtime, &pitch, junk)!=4)
-		bad_input(line_no);
-	    
-	    note[z].tpc = ((((((pitch%12) * 7) % 12) + 5) % 12) + 9);    /* For note input, generate TPC labels
-									    within the 9-to-20 range */
-	    note[z].duration = note[z].offtime - note[z].ontime;
-	    /* printf("%d %d %d %d\n", note[z].ontime, note[z].offtime, pitch, note[z].tpc);   */
-	    total_duration = total_duration + note[z].duration;
-	    npc_found = 1;
-	    ++z;
-	}
-	
-	else if (strcmp (noteword, "Chord") == 0) {  
-	    if (sscanf (line, "%s %d %d %d %10s", noteword, &ichord[c].ontime, &ichord[c].offtime, &ichord[c].root, junk)!=4)
-		bad_input(line_no);
-	    if((c>0 && ichord[c].ontime!=ichord[c-1].offtime) || ichord[c].ontime>=ichord[c].offtime) {
-		printf("Line %d: Error: Chords must be chronological, each one starting where the previous one ended.\n", line_no);
-		exit(1);
-	    }
-	    ichord[c].duration = ichord[c].offtime - ichord[c].ontime;
-	    ichord[c].root=ichord[c].root+12;                     /* C = 14 */
-	    c++;
-	}
-	
-	else if (strcmp (noteword, "Beat") == 0) {   
-	    if(sscanf (line, "%s %d %d %10s", noteword, &beat[b].time, &beat[b].level, junk) != 3) bad_input(line_no);
-	    if(b>0 && beat[b].time<=beat[b-1].time) {
-		printf("Line %d: Error: Beats must be inputted in chronological order.\n", line_no);
-		exit(1);
-	    }
-	    b++;
-	}
-	else bad_input(line_no);
     }
-    /*    printf("the number of events is %d\n", z);           */
-    /*	  printf("total duration is %d\n", total_duration);    */
-    
-    firstbeat = beat[0].time;
-    final_timepoint=beat[b-1].time;
-    numnotes = z;
-    numchords = c;
-    numbeats = b;
-    if(z==0) {
-	printf("Error: No notes in input.\n");
-	exit(1);
+    else if (strcmp (noteword, "Note") == 0) {
+      if (npc_or_tpc_profile == 1) {
+        printf("Error: TPCNotes needed as input for TPC profile mode\n");
+        exit(1);
+      }
+      if(tpc_found == 1) {
+        printf("Error: Can't combine Notes and TPCNotes in a single input file\n");
+        exit(1);
+      }
+      if (sscanf (line, "%s %d %d %d %10s", noteword, &note[z].ontime, &note[z].offtime, &pitch, junk)!=4)
+        bad_input(line_no);
+
+      note[z].tpc = ((((((pitch%12) * 7) % 12) + 5) % 12) + 9);    /* For note input, generate TPC labels
+									                                                      within the 9-to-20 range */
+      note[z].duration = note[z].offtime - note[z].ontime;
+      /* printf("%d %d %d %d\n", note[z].ontime, note[z].offtime, pitch, note[z].tpc);   */
+      total_duration = total_duration + note[z].duration;
+      npc_found = 1;
+      ++z;
     }
-    if(c>0)harmonic_input=1;
-    if(harmonic_input==1) {
-	if(ichord[0].ontime!=beat[0].time) {
-	    /* printf("Error: First chord ontime must coincide with first beat.\n");
-	       exit(1); */
-	    printf("Warning: First chord ontime doesn't coincide with first beat--adjusting it.\n");
-	    ichord[0].ontime = beat[0].time;
-	}
-	if(ichord[c-1].offtime!=final_timepoint) {
-	    /* printf("Error: Last chord offtime must coincide with last beat.\n");
-	       exit(1); */
-	    printf("Warning: Last chord offtime doesn't coincide with last beat--adjusting it.\n");
-	    ichord[c-1].offtime = final_timepoint;
-	}
+    else if (strcmp (noteword, "Chord") == 0) {
+      if (sscanf (line, "%s %d %d %d %10s", noteword, &ichord[c].ontime, &ichord[c].offtime, &ichord[c].root, junk)!=4)
+          bad_input(line_no);
+      if((c>0 && ichord[c].ontime!=ichord[c-1].offtime) || ichord[c].ontime>=ichord[c].offtime) {
+        printf("Line %d: Error: Chords must be chronological, each one starting where the previous one ended.\n", line_no);
+        exit(1);
+      }
+      ichord[c].duration = ichord[c].offtime - ichord[c].ontime;
+      ichord[c].root=ichord[c].root+12;                     /* C = 14 */
+      c++;
     }
-    
-    for (b=0; b<numbeats; b++) {                          /* create sbeats - beats of segment level or higher */
-	if(beat[b].level>=segment_beat_level) {                   
-	    sbeat[s].time=beat[b].time;
-	    s++;
-	}
-    }	
-    num_sbeats = s;
-    seglength = (sbeat[1].time-sbeat[0].time)/1000.0; /* define segment length as the length of the first segment (in secs) */
-    if(verbosity>1) printf("seglength = %3.3f\n", seglength); 
-    for (c=0; c<numchords; c++) {                         /* set beat_level of chords */
-	for (b=0; b<numbeats; b++) {
-	    if (ichord[c].ontime==beat[b].time) {
-		ichord[c].beatlevel=beat[b].level;
-	    }
-	}
+    else if (strcmp (noteword, "Beat") == 0) {
+      if(sscanf (line, "%s %d %d %10s", noteword, &beat[b].time, &beat[b].level, junk) != 3) bad_input(line_no);
+      if(b>0 && beat[b].time<=beat[b-1].time) {
+        printf("Line %d: Error: Beats must be inputted in chronological order.\n", line_no);
+        exit(1);
+      }
+      b++;
     }
-    
-    create_chords();
-    create_segments(); 
-    fill_segments();
-    count_segment_notes();
-    if(scoring_mode==0) prepare_profiles(); 
-    if(npc_or_tpc_profile==1) generate_tpc_profiles();
-    else generate_npc_profiles();
-    match_profiles(); 
-    if(segtotal>0) {
-	make_first_table();
-	make_tables();
-	best_key_analysis();
+    else bad_input(line_no);
+  }
+
+  /*　printf("the number of events is %d\n", z);          */
+  /*　printf("total duration is %d\n", total_duration);   */
+  firstbeat = beat[0].time;
+  final_timepoint = beat[b-1].time;
+  numnotes = z;
+  numchords = c;
+  numbeats = b;
+  if(z==0) {
+    printf("Error: No notes in input.\n");
+    exit(1);
+  }
+  if(c>0) harmonic_input=1;
+  if(harmonic_input==1) {
+    if(ichord[0].ontime!=beat[0].time) {
+      /* printf("Error: First chord ontime must coincide with first beat.\n");
+      exit(1); */
+      printf("Warning: First chord ontime doesn't coincide with first beat--adjusting it.\n");
+      ichord[0].ontime = beat[0].time;
     }
-    if(romnums==1 && harmonic_input==1){
-	generate_chord_info();
-	merge_functions();
-	if(romnum_type==0) {
-	    chords_to_romnums_kp();
-	    print_romnums_kp();
-	}
-	if(romnum_type==1) {
-	    chords_to_romnums_as(); 
-	    print_romnums_as(); 
-	}
-    }
-#if 0
-    display_table();                           /* Displays the search table for one segment (specified there) */
-#endif
-    if (running==1) display_running(); 
-    
+    if(ichord[c-1].offtime!=final_timepoint) {
+      /* printf("Error: Last chord offtime must coincide with last beat.\n");
+       exit(1); */
+       printf("Warning: Last chord offtime doesn't coincide with last beat--adjusting it.\n");
+       ichord[c-1].offtime = final_timepoint;
+     }
+   }
+   for (b=0; b<numbeats; b++) {                          /* create sbeats - beats of segment level or higher */
+     if(beat[b].level>=segment_beat_level) {
+       sbeat[s].time=beat[b].time;
+       s++;
+     }
+   }
+   num_sbeats = s;
+   seglength = (sbeat[1].time-sbeat[0].time)/1000.0; /* define segment length as the length of the first segment (in secs) */
+   if(verbosity>1) printf("seglength = %3.3f\n", seglength);
+   for (c=0; c<numchords; c++) {                         /* set beat_level of chords */
+     for (b=0; b<numbeats; b++) if (ichord[c].ontime==beat[b].time) ichord[c].beatlevel=beat[b].level;
+   }
+   create_chords();
+   create_segments();
+   fill_segments();
+   count_segment_notes();
+
+   if(scoring_mode==0) prepare_profiles();
+
+   if(npc_or_tpc_profile==1) generate_tpc_profiles();
+   else generate_npc_profiles();
+
+   match_profiles();
+
+   if(segtotal>0) {         // BETE: when there's just one segment to be analyzed the function match_profiles()
+                            // prints the best_key for that segment
+     make_first_table();
+     make_tables();
+     best_key_analysis();
+   }
+
+   if(romnums==1 && harmonic_input==1) {
+     generate_chord_info();
+     merge_functions();
+     if(romnum_type==0) {
+       chords_to_romnums_kp();
+       print_romnums_kp();
+     }
+     else if(romnum_type==1) {
+       chords_to_romnums_as();
+       print_romnums_as();
+     }
+   }
+
+  #if 0
+  display_table();                           /* Displays the search table for one segment (specified there) */
+  #endif
+  if (running==1) display_running();
+  return EXIT_SUCCESS;
 }
