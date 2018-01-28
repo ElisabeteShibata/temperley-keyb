@@ -556,7 +556,7 @@ int match_profiles() {
       print_keyname(best_key);
       printf("\n");
     }
-    
+
     return EXIT_SUCCESS;
 }
 
@@ -656,7 +656,6 @@ int best_key_analysis() {
     for(j=0, k=0; j<56; j++) {
       n=best[s][j];
       m=best[s][k];
-      printf("n, m = %d, %d\n", n, m);
 
       if (analysis[s][n][j] < analysis[s][m][k] + .001 && analysis[s][n][j] > analysis[s][m][k] - .001 && j!=k) {
         tie1=j;
